@@ -1,0 +1,256 @@
+Dependencia
+
+testCompile('com.github.tomakehurst:wiremock:2.1.12')
+
+src/test/resources/mappings
+
+{
+  "request": {
+    "url": "/clientes",
+    "method": "GET"
+  },
+  "response": {
+    "status": 200,
+    "body": "[{\"idCliente\":99,\"nome\": \"Wiremock\",\"dataNascimento\":\"1984-10-19\",\"cpf\": \"11111111111\",\"endereco\": \"Rua Um, 75\"}]",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
+_______________________________________________________________________________
+
+
+package com.hibicode.beerstore.service;
+
+import com.hibicode.beerstore.model.Client;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.RequestEntity;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
+import java.util.List;
+
+@Service
+public class ClientService {
+
+    public List<Client> findAll(){
+        RestTemplate restTemplate = new RestTemplate();
+        RequestEntity<Void> request = RequestEntity.get(URI.create("http://localhost:8180/clientes")).build();
+
+        ResponseEntity<List<Client>> response = restTemplate.exchange(request, new ParameterizedTypeReference<List<Client>>() {});
+
+        List<Client> body = response.getBody();
+
+        body.forEach(c -> System.out.println(c.getNome()));
+
+        return body;
+    }
+}
+
+_______________________________________________________________________________
+
+package com.hibicode.beerstore;
+
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.hibicode.beerstore.model.Client;
+import com.hibicode.beerstore.service.ClientService;
+import com.hibicode.beerstore.wiremock.WireMockConfig;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
+
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+public class ClientServiceInLineStubConfigTest {
+
+    @Rule
+    public WireMockRule wireMockRule = new WireMockRule(wireMockConfig().port(8180));
+
+    @Autowired
+    private ClientService service;
+
+    @Test
+    public void clientTest(){
+
+        stubFor(get(urlEqualTo("/clientes"))
+                .willReturn(
+                        aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("[\n" +
+                                "    {\n" +
+                                "        \"idCliente\": 99,\n" +
+                                "        \"nome\": \"Wiremock\",\n" +
+                                "        \"dataNascimento\": \"1984-10-19\",\n" +
+                                "        \"cpf\": \"11111111111\",\n" +
+                                "        \"endereco\": \"Rua Um, 75\"\n" +
+                                "    }\n" +
+                                "]")
+                )
+        );
+
+
+        service = new ClientService();
+
+        List<Client> all = service.findAll();
+
+        Assert.assertFalse(all.isEmpty());
+    }
+
+}
+_________________________________________________
+package com.hibicode.beerstore.wiremock;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+
+public class WireMockConfig {
+
+    private static WireMockServer wireMockServer;
+
+    public WireMockConfig(){
+        wireMockServer = new WireMockServer(wireMockConfig().port(8180));
+    }
+
+    public  void init(){
+        wireMockServer.start();
+    }
+
+    public  void reset(){
+        WireMock.reset();
+    }
+
+    public  void stop(){
+        wireMockServer.stop();
+    }
+}
+_________________________________________________
+
+package com.hibicode.beerstore;
+
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.hibicode.beerstore.model.Client;
+import com.hibicode.beerstore.service.ClientService;
+import com.hibicode.beerstore.wiremock.WireMockConfig;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
+
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+public class ClientServiceWireMockConfigInlineStubTest {
+
+    @Autowired
+    private ClientService service;
+
+    private WireMockConfig wireMockConfig;
+
+    @Before
+    public void init(){
+        MockitoAnnotations.initMocks(this);
+        wireMockConfig = new WireMockConfig();
+        wireMockConfig.init();
+    }
+
+    @After
+    public void exit(){
+        wireMockConfig.stop();
+    }
+
+    @Test
+    public void clienteTest(){
+        WireMock wireMock = new WireMock("localhost",8180);
+        wireMock.register(get(urlEqualTo("/clientes"))
+                .willReturn(
+                        aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("[\n" +
+                                        "    {\n" +
+                                        "        \"idCliente\": 99,\n" +
+                                        "        \"nome\": \"Wiremock\",\n" +
+                                        "        \"dataNascimento\": \"1984-10-19\",\n" +
+                                        "        \"cpf\": \"11111111111\",\n" +
+                                        "        \"endereco\": \"Rua Um, 75\"\n" +
+                                        "    }\n" +
+                                        "]")
+                ));
+        service = new ClientService();
+        List<Client> all = service.findAll();
+        Assert.assertFalse(all.isEmpty());
+    }
+}
+
+_________________________________________________
+
+package com.hibicode.beerstore;
+
+import com.hibicode.beerstore.model.Client;
+import com.hibicode.beerstore.service.ClientService;
+import com.hibicode.beerstore.wiremock.WireMockConfig;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
+
+import java.util.List;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+public class ClientServiceWireMockConfigStubInFileTest {
+
+    @Autowired
+    private ClientService service;
+
+    private WireMockConfig wireMockConfig;
+
+    @Before
+    public void init(){
+        MockitoAnnotations.initMocks(this);
+        wireMockConfig = new WireMockConfig();
+        wireMockConfig.init();
+    }
+
+    @After
+    public void exit(){
+        wireMockConfig.stop();
+    }
+
+    @Test
+    public void clientTest(){
+        service = new ClientService();
+        List<Client> all = service.findAll();
+        Assert.assertFalse(all.isEmpty());
+
+    }
+
+}
+
+_________________________________________________
