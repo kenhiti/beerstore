@@ -1,0 +1,13 @@
+{
+  "request": {
+    "url": "/clientes",
+    "method": "GET"
+  },
+  "response": {
+    "status": 200,
+    "body": "[{\"idCliente\":99,\"nome\": \"Wiremock\",\"dataNascimento\":\"1984-10-19\",\"cpf\": \"11111111111\",\"endereco\": \"Rua Um, 75\"}]",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
